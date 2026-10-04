@@ -38,7 +38,6 @@ def text_to_audio(text):
     except Exception as e:
         return None
 
-
 st.title("🤖 Jatin's Assistant")
 st.caption("Main Jatin ka personal assistant hoon. Main internet par search kar sakta hoon aur aawaz mein jawab de sakta hoon!")
 
@@ -58,13 +57,17 @@ if prompt := st.chat_input("Mujhse kuch bhi puchiye..."):
         with st.spinner("Internet par search kar raha hoon... 🌐"):
             web_context = get_free_search_results(prompt)
             
+            # YAHAN EK NAYA FEATURE LAGA HAI DEKHNE KE LIYE KI KYA SEARCH HUA
+            with st.expander("🔍 Background Search Data Dekhein"):
+                st.write(web_context if web_context else "Kuch nahi mila.")
+            
         with st.spinner("Jawab soch raha hoon... 🤔"):
-            # Yahan bot ko chote jawab dene ko kaha gaya hai
-            system_prompt = f"""You are a helpful, smart, and friendly AI assistant named "Jatin's Assistant". 
-            You were created by Jatin. Answer the user's question using the provided web search results. 
-            If the answer is not in the results, use your own knowledge. 
-            Keep the answer very short, clear, and maximum 2-3 sentences.
-            If someone asks your name, proudly say that you are Jatin's Assistant.
+            # SYSTEM PROMPT KO BAHUT STRICT KAR DIYA HAI
+            system_prompt = f"""You are Jatin's Assistant, an AI created by Jatin. 
+            CRITICAL RULE: You MUST answer the user's question STRICTLY based on the Web Search Results below. 
+            Do NOT guess or use your own knowledge if the info is not in the results. 
+            If the answer is not in the search results, simply reply: "Maaf karna, mujhe internet par iski sahi jankari nahi mili."
+            Reply in the exact same language the user asked (Hindi/Hinglish/English). Keep it maximum 2-3 sentences.
             
             Web Search Results:
             {web_context}"""
@@ -76,7 +79,7 @@ if prompt := st.chat_input("Mujhse kuch bhi puchiye..."):
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": prompt}
                     ],
-                    max_tokens=250  # <--- Ekdum safe aur minimum value
+                    max_tokens=250
                 )
                 bot_response = completion.choices[0].message.content
                 
