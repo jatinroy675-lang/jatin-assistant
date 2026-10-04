@@ -6,7 +6,6 @@ from groq import Groq
 from tavily import TavilyClient
 from gtts import gTTS
 from dotenv import load_dotenv
-from streamlit_mic_recorder import mic_recorder
 
 load_dotenv()
 
@@ -44,7 +43,7 @@ def text_to_audio(text):
         return None
 
 st.title("🤖 Jatin's Assistant")
-st.caption("Main Jatin ka personal assistant hoon. Neeche mic button dabakar kuch bhi boliye!")
+st.caption("Main Jatin ka personal assistant hoon. Main internet par search kar sakta hoon aur aawaz mein jawab de sakta hoon!")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -53,48 +52,18 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# --- VOICE ASSISTANT INTERFACE ---
-user_prompt = None
-
-st.markdown("### 🎙️ Voice Control")
-audio_data = mic_recorder(
-    start_prompt="🔴 Bolna Shuru Karein (Click to Speak)",
-    stop_prompt="⏹️ Sunna Band Karein",
-    just_once=True,
-    key='voice_assistant'
-)
-
-if audio_data:
-    with st.spinner("Aapki aawaz sun raha hoon... 🎧"):
-        try:
-            temp_audio = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-            temp_audio.write(audio_data['bytes'])
-            temp_audio.close()
-            
-            with open(temp_audio.name, "rb") as file:
-                transcription = groq_client.audio.transcriptions.create(
-                    file=(temp_audio.name, file.read()),
-                    model="whisper-large-v3",
-                    language="hi"
-                )
-            user_prompt = transcription.text
-            os.unlink(temp_audio.name)
-        except Exception as e:
-            st.error(f"Aawaz pehchanne mein error aayi: {e}")
-
-# Agar aap chahein toh text type karne ka option bhi niche rakh sakte hain
-text_prompt = st.chat_input("Ya yahan type kar sakte hain...")
-prompt = user_prompt if user_prompt else text_prompt
-
-if prompt:
+if prompt := st.chat_input("Mujhse kuch bhi puchiye..."):
+    
     st.chat_message("user").markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
 
     with st.chat_message("assistant"):
-        with st.spinner("Internet par search kar raha hoon... 🌐"):
+        
+        with st.spinner("Search kar raha hoon... 🌐"):
             web_context = get_tavily_search_results(prompt)
             
-        with st.spinner("Jawab taiyar kar raha hoon... 🤔"):
+        with st.spinner("Jawab soch raha hoon... 🤔"):
+            
             system_prompt = f"""You are Jatin's Assistant, a smart AI created by Jatin. 
             First, try to answer the user's question using the Search Results provided below. 
             If the Search Results are empty or do not contain the answer, you MUST use your own general knowledge to give the correct answer.
@@ -117,7 +86,7 @@ if prompt:
                 st.markdown(bot_response)
                 st.session_state.messages.append({"role": "assistant", "content": bot_response})
                 
-                with st.spinner("Bol kar bata raha hoon... 🔊"):
+                with st.spinner("Aawaz generate kar raha hoon... 🔊"):
                     audio_file_path = text_to_audio(bot_response)
                     if audio_file_path:
                         with open(audio_file_path, "rb") as f:
