@@ -3,4 +3,4 @@ requests
 python-dotenv
 gTTS
 groq
-duckduckgo-search
+tavily-python
