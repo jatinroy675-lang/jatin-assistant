@@ -6,10 +6,12 @@ from duckduckgo_search import DDGS
 from gtts import gTTS
 from dotenv import load_dotenv
 
+# Local .env file load karne ke liye
 load_dotenv()
 
 st.set_page_config(page_title="Jatin's Assistant", page_icon="🤖")
 
+# API Key setup
 try:
     GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 except:
@@ -20,6 +22,8 @@ if not GROQ_API_KEY:
     st.stop()
 
 client = Groq(api_key=GROQ_API_KEY)
+
+# --- HELPER FUNCTIONS ---
 
 def get_free_search_results(query):
     try:
@@ -38,6 +42,8 @@ def text_to_audio(text):
     except Exception as e:
         return None
 
+# --- MAIN CHATBOT UI ---
+
 st.title("🤖 Jatin's Assistant")
 st.caption("Main Jatin ka personal assistant hoon. Main internet par search kar sakta hoon aur aawaz mein jawab de sakta hoon!")
 
@@ -54,20 +60,21 @@ if prompt := st.chat_input("Mujhse kuch bhi puchiye..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
 
     with st.chat_message("assistant"):
+        
         with st.spinner("Internet par search kar raha hoon... 🌐"):
             web_context = get_free_search_results(prompt)
             
-            # YAHAN EK NAYA FEATURE LAGA HAI DEKHNE KE LIYE KI KYA SEARCH HUA
+            # Background data dekhne ke liye (debugging)
             with st.expander("🔍 Background Search Data Dekhein"):
                 st.write(web_context if web_context else "Kuch nahi mila.")
             
         with st.spinner("Jawab soch raha hoon... 🤔"):
-            # SYSTEM PROMPT KO BAHUT STRICT KAR DIYA HAI
-            system_prompt = f"""You are Jatin's Assistant, an AI created by Jatin. 
-            CRITICAL RULE: You MUST answer the user's question STRICTLY based on the Web Search Results below. 
-            Do NOT guess or use your own knowledge if the info is not in the results. 
-            If the answer is not in the search results, simply reply: "Maaf karna, mujhe internet par iski sahi jankari nahi mili."
-            Reply in the exact same language the user asked (Hindi/Hinglish/English). Keep it maximum 2-3 sentences.
+            
+            # YAHAN SYSTEM PROMPT UPDATE KIYA HAI - AB YE APNA DIMAG BHI LAGAYEGA
+            system_prompt = f"""You are Jatin's Assistant, a smart AI created by Jatin. 
+            First, try to answer the user's question using the Web Search Results provided below. 
+            If the Web Search Results are empty or do not contain the answer, you MUST use your own general knowledge to give the correct answer.
+            Keep the answer very short, clear, and direct (maximum 1-2 sentences). Reply in the language the user used (Hindi/Hinglish/English).
             
             Web Search Results:
             {web_context}"""
