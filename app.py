@@ -1,18 +1,17 @@
 import streamlit as st
 import os
 import tempfile
-import base64  # Bina icon ke audio play karne ke liye add kiya
+import base64
 from groq import Groq
 from tavily import TavilyClient
 from gtts import gTTS
 from dotenv import load_dotenv
+from streamlit_mic_recorder import mic_recorder
 
-# Local .env file load karne ke liye
 load_dotenv()
 
 st.set_page_config(page_title="Jatin's Assistant", page_icon="🤖")
 
-# API Keys setup 
 try:
     GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
     TAVILY_API_KEY = st.secrets["TAVILY_API_KEY"]
@@ -24,14 +23,10 @@ if not GROQ_API_KEY or not TAVILY_API_KEY:
     st.error("API Keys missing hain! Kripya secrets ya .env file check karein.")
     st.stop()
 
-# Clients shuru karein
 groq_client = Groq(api_key=GROQ_API_KEY)
 tavily_client = TavilyClient(api_key=TAVILY_API_KEY)
 
-# --- HELPER FUNCTIONS ---
-
 def get_tavily_search_results(query):
-    """Tavily API se AI ke liye clean search results lata hai"""
     try:
         response = tavily_client.search(query=query, search_depth="basic", max_results=3)
         snippets = [result['content'] for result in response.get('results', [])]
@@ -48,10 +43,8 @@ def text_to_audio(text):
     except Exception as e:
         return None
 
-# --- MAIN CHATBOT UI ---
-
 st.title("🤖 Jatin's Assistant")
-st.caption("Main Jatin ka personal assistant hoon. Main aapke sawalon ke jawab aawaz mein de sakta hoon!")
+st.caption("Main Jatin ka personal assistant hoon. Neeche mic button dabakar kuch bhi boliye!")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -60,19 +53,48 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-if prompt := st.chat_input("Mujhse kuch bhi puchiye..."):
-    
+# --- VOICE ASSISTANT INTERFACE ---
+user_prompt = None
+
+st.markdown("### 🎙️ Voice Control")
+audio_data = mic_recorder(
+    start_prompt="🔴 Bolna Shuru Karein (Click to Speak)",
+    stop_prompt="⏹️ Sunna Band Karein",
+    just_once=True,
+    key='voice_assistant'
+)
+
+if audio_data:
+    with st.spinner("Aapki aawaz sun raha hoon... 🎧"):
+        try:
+            temp_audio = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+            temp_audio.write(audio_data['bytes'])
+            temp_audio.close()
+            
+            with open(temp_audio.name, "rb") as file:
+                transcription = groq_client.audio.transcriptions.create(
+                    file=(temp_audio.name, file.read()),
+                    model="whisper-large-v3",
+                    language="hi"
+                )
+            user_prompt = transcription.text
+            os.unlink(temp_audio.name)
+        except Exception as e:
+            st.error(f"Aawaz pehchanne mein error aayi: {e}")
+
+# Agar aap chahein toh text type karne ka option bhi niche rakh sakte hain
+text_prompt = st.chat_input("Ya yahan type kar sakte hain...")
+prompt = user_prompt if user_prompt else text_prompt
+
+if prompt:
     st.chat_message("user").markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
 
     with st.chat_message("assistant"):
-        
-        with st.spinner("Search kar raha hoon... 🌐"):
+        with st.spinner("Internet par search kar raha hoon... 🌐"):
             web_context = get_tavily_search_results(prompt)
-            # Background Search Data dekhne wala box yahan se hata diya gaya hai
             
-        with st.spinner("Jawab soch raha hoon... 🤔"):
-            
+        with st.spinner("Jawab taiyar kar raha hoon... 🤔"):
             system_prompt = f"""You are Jatin's Assistant, a smart AI created by Jatin. 
             First, try to answer the user's question using the Search Results provided below. 
             If the Search Results are empty or do not contain the answer, you MUST use your own general knowledge to give the correct answer.
@@ -95,10 +117,9 @@ if prompt := st.chat_input("Mujhse kuch bhi puchiye..."):
                 st.markdown(bot_response)
                 st.session_state.messages.append({"role": "assistant", "content": bot_response})
                 
-                with st.spinner("Aawaz generate kar raha hoon... 🔊"):
+                with st.spinner("Bol kar bata raha hoon... 🔊"):
                     audio_file_path = text_to_audio(bot_response)
                     if audio_file_path:
-                        # Yahan audio player ka icon hata kar HTML hidden audio chalaya gaya hai
                         with open(audio_file_path, "rb") as f:
                             audio_bytes = f.read()
                         audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
