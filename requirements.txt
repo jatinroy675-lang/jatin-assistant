@@ -4,3 +4,4 @@ python-dotenv
 gTTS
 groq
 tavily-python
+streamlit-mic-recorder
