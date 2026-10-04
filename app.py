@@ -89,7 +89,7 @@ if prompt := st.chat_input("Mujhse kuch bhi puchiye..."):
             
             try:
                 completion = client.chat.completions.create(
-                    model="llama-3.1-8b-instant", 
+                    model="qwen/qwen3.8-27b", 
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": prompt}
