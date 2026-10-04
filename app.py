@@ -2,7 +2,7 @@ import streamlit as st
 import os
 import tempfile
 from groq import Groq
-from duckduckgo_search import DDGS
+from tavily import TavilyClient
 from gtts import gTTS
 from dotenv import load_dotenv
 
@@ -11,24 +11,29 @@ load_dotenv()
 
 st.set_page_config(page_title="Jatin's Assistant", page_icon="🤖")
 
-# API Key setup
+# API Keys setup 
 try:
     GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+    TAVILY_API_KEY = st.secrets["TAVILY_API_KEY"]
 except:
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+    TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 
-if not GROQ_API_KEY:
-    st.error("Groq API Key nahi mili! Kripya GitHub secrets ya .env file me add karein.")
+if not GROQ_API_KEY or not TAVILY_API_KEY:
+    st.error("API Keys missing hain! Kripya secrets ya .env file check karein.")
     st.stop()
 
-client = Groq(api_key=GROQ_API_KEY)
+# Clients shuru karein
+groq_client = Groq(api_key=GROQ_API_KEY)
+tavily_client = TavilyClient(api_key=TAVILY_API_KEY)
 
 # --- HELPER FUNCTIONS ---
 
-def get_free_search_results(query):
+def get_tavily_search_results(query):
+    """Tavily API se AI ke liye clean search results lata hai"""
     try:
-        results = DDGS().text(query, max_results=3)
-        snippets = [res['body'] for res in results]
+        response = tavily_client.search(query=query, search_depth="basic", max_results=3)
+        snippets = [result['content'] for result in response.get('results', [])]
         return "\n".join(snippets)
     except Exception as e:
         return ""
@@ -45,7 +50,7 @@ def text_to_audio(text):
 # --- MAIN CHATBOT UI ---
 
 st.title("🤖 Jatin's Assistant")
-st.caption("Main Jatin ka personal assistant hoon. Main internet par search kar sakta hoon aur aawaz mein jawab de sakta hoon!")
+st.caption("Main Jatin ka personal assistant hoon. Main internet par search karne ke liye Tavily API ka use karta hoon!")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -61,26 +66,24 @@ if prompt := st.chat_input("Mujhse kuch bhi puchiye..."):
 
     with st.chat_message("assistant"):
         
-        with st.spinner("Internet par search kar raha hoon... 🌐"):
-            web_context = get_free_search_results(prompt)
+        with st.spinner("Tavily par search kar raha hoon... 🌐"):
+            web_context = get_tavily_search_results(prompt)
             
-            # Background data dekhne ke liye (debugging)
-            with st.expander("🔍 Background Search Data Dekhein"):
-                st.write(web_context if web_context else "Kuch nahi mila.")
+            with st.expander("🔍 Background Search Data"):
+                st.write(web_context if web_context else "Tavily ko kuch nahi mila.")
             
         with st.spinner("Jawab soch raha hoon... 🤔"):
             
-            # YAHAN SYSTEM PROMPT UPDATE KIYA HAI - AB YE APNA DIMAG BHI LAGAYEGA
             system_prompt = f"""You are Jatin's Assistant, a smart AI created by Jatin. 
-            First, try to answer the user's question using the Web Search Results provided below. 
-            If the Web Search Results are empty or do not contain the answer, you MUST use your own general knowledge to give the correct answer.
+            First, try to answer the user's question using the Search Results provided below. 
+            If the Search Results are empty or do not contain the answer, you MUST use your own general knowledge to give the correct answer.
             Keep the answer very short, clear, and direct (maximum 1-2 sentences). Reply in the language the user used (Hindi/Hinglish/English).
             
-            Web Search Results:
+            Search Results:
             {web_context}"""
             
             try:
-                completion = client.chat.completions.create(
+                completion = groq_client.chat.completions.create(
                     model="qwen/qwen3.8-27b", 
                     messages=[
                         {"role": "system", "content": system_prompt},
