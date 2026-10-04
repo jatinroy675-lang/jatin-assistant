@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import tempfile
+import base64  # Bina icon ke audio play karne ke liye add kiya
 from groq import Groq
 from tavily import TavilyClient
 from gtts import gTTS
@@ -50,7 +51,7 @@ def text_to_audio(text):
 # --- MAIN CHATBOT UI ---
 
 st.title("🤖 Jatin's Assistant")
-st.caption("Main Jatin ka personal assistant hoon. Main internet par search karne ke liye Tavily API ka use karta hoon!")
+st.caption("Main Jatin ka personal assistant hoon. Main aapke sawalon ke jawab aawaz mein de sakta hoon!")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -66,11 +67,9 @@ if prompt := st.chat_input("Mujhse kuch bhi puchiye..."):
 
     with st.chat_message("assistant"):
         
-        with st.spinner("Tavily par search kar raha hoon... 🌐"):
+        with st.spinner("Search kar raha hoon... 🌐"):
             web_context = get_tavily_search_results(prompt)
-            
-            with st.expander("🔍 Background Search Data"):
-                st.write(web_context if web_context else "Tavily ko kuch nahi mila.")
+            # Background Search Data dekhne wala box yahan se hata diya gaya hai
             
         with st.spinner("Jawab soch raha hoon... 🤔"):
             
@@ -99,7 +98,16 @@ if prompt := st.chat_input("Mujhse kuch bhi puchiye..."):
                 with st.spinner("Aawaz generate kar raha hoon... 🔊"):
                     audio_file_path = text_to_audio(bot_response)
                     if audio_file_path:
-                        st.audio(audio_file_path, format="audio/mp3", autoplay=True)
+                        # Yahan audio player ka icon hata kar HTML hidden audio chalaya gaya hai
+                        with open(audio_file_path, "rb") as f:
+                            audio_bytes = f.read()
+                        audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+                        audio_html = f"""
+                            <audio autoplay hidden>
+                            <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
+                            </audio>
+                        """
+                        st.markdown(audio_html, unsafe_allow_html=True)
                         
             except Exception as e:
                 st.error(f"Koi technical error aayi: {e}")
